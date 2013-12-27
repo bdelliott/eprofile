@@ -1,8 +1,8 @@
 """Set a trace function and track time in individual greenthreads"""
 # set a trace function and do some basic profiling on where time is spent
 
-import eventlet
-eventlet.monkey_patch()
+#import eventlet
+#eventlet.monkey_patch()
 
 from eventlet import greenthread
 import sys
@@ -10,47 +10,63 @@ import time
 
 import tests
 
-threads = {}
 
+class Profiler(object):
 
-def _gid():
-    return id(greenthread.getcurrent())
+    def __init__(self):
+        self.threads = {}
 
+        # call once into the hub or we get errors about missing 'hub' in
+        # threadlocal during tracing
+        time.sleep(0)
 
-def disable():
-    sys.settrace(None)
+    def runcall(self, func, *args, **kwargs):
 
-    # pop the call to disable off the trace stack and call data
-    gid = _gid()
-    thread = threads[gid]
-    thread.stack.pop()
-    thread.calls.pop()
+        sys.settrace(self.trace)
+        try:
+            func(*args, **kwargs)
+        finally:
+            sys.settrace(None)
 
+    def _gid(self):
+        return id(greenthread.getcurrent())
 
-def enable():
-    sys.settrace(trace)
+    def trace(self, frame, event, arg):
+        gid = self._gid()
+        x = len(self.threads)
+        thread = self.threads.setdefault(gid, Thread(gid))
+        y = len(self.threads)
+        if y > x:
+            print "Added thread: %s" % gid
 
+        if event == 'call':
+            # interpreter is calling a new function
+            thread.call(frame)
 
-def trace(frame, event, arg):
-    gid = _gid()
-    thread = threads.setdefault(gid, Thread(gid))
+            return self.trace
 
-    if event == 'call':
-        # interpreter is calling a new function
-        thread.call(frame)
+        elif event == 'line':
+            # interpreter is executing a new line or iteration of a loop.
+            # ignore.
+            pass
 
-        return trace
+        elif event == 'return':
+            # pop a call off the thread's state stack
+            thread.return_()
 
-    elif event == 'line':
-        # interpreter is executing a new line or iteration of a loop. ignore.
-        pass
+        elif event == 'exception':
+            exc, value, tb = arg
+            print "**** exception ****"
+            print exc
+            print value
+            print tb
+            import traceback
+            traceback.print_tb(tb)
 
-    elif event == 'return':
-        # pop a call off the thread's state stack
-        thread.return_()
+            raise exc, value, tb
 
-    else:
-        raise SystemExit(event)
+        else:
+            raise SystemExit(event)
 
 
 class Thread(object):

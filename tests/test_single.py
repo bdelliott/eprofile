@@ -1,5 +1,6 @@
 import base
 
+from eprofile import fixtures
 from eprofile import trace
 
 
@@ -8,23 +9,19 @@ class SingleThreadTestCase(base.TestCase):
     def test_single(self):
         # test single threaded tracing
 
-        gid = trace._gid()
-        trace.enable()
-        fib(3)
-        bar()
-        trace.disable()
+        gid = self.prof._gid()
+        self.prof.runcall(fixtures.fib, 3)
 
-        threads = trace.threads
+        threads = self.prof.threads
         self.assertEqual(1, len(threads))
         self.assertEqual(gid, threads.keys()[0])
 
         thread = threads.values()[0]
         # stack should be empty
-        print thread.stack
         self.assertEqual(0, len(thread.stack))
 
-        # should be top-level calls made
-        self.assertEqual(2, len(thread.calls))
+        # should be 1 top-level call
+        self.assertEqual(1, len(thread.calls))
 
         # first call is to fib(3)
         fib3 = thread.calls[0]
@@ -40,24 +37,3 @@ class SingleThreadTestCase(base.TestCase):
         # fib(1) == 0
         fib1 = fib2.callees[0]
         self.assertEqual(0, len(fib1.callees))
-
-
-def fib(n):
-    if n == 0:
-        return 0
-    elif n == 1:
-        return 1
-    else:
-        return fib(n-1) + fib(n-2)
-
-
-def bar():
-    baz()
-
-
-def baz():
-    booyah()
-
-
-def booyah():
-    pass

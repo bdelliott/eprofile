@@ -5,23 +5,21 @@ eventlet.monkey_patch()
 
 import sys
 
+from eprofile import fixtures
 from eprofile import trace
 
 
 def main():
-    from tests import single
 
-    trace.enable()
-    single.foo()
-    trace.disable()
-    sys.settrace(None)
+    prof = trace.Profiler()
+    prof.runcall(fixtures.foo)
 
     print "-"*80
     print "Trace info:"
     print "-"*80
     print
 
-    threads = trace.threads
+    threads = prof.threads
     for gid, thread in threads.iteritems():
         print "Thread %d:" % gid
         for call in thread.calls:
