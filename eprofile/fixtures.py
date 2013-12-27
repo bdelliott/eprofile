@@ -2,7 +2,6 @@
 import time
 
 from eventlet import greenpool
-from eventlet import greenthread
 
 
 def foo(i):
@@ -15,11 +14,13 @@ def bar():
 
 
 def multi():
-    print "Run in multiple greenthreads:"
+    # Run in multiple greenthreads
     pool = greenpool.GreenPool(2)
 
+    results = []
+
     for result in pool.imap(foo, range(2)):
-        print result
+        results.append(result)
 
 
 def fib(n):

@@ -1,7 +1,6 @@
 import base
 
 from eprofile import fixtures
-from eprofile import trace
 
 
 class SingleThreadTestCase(base.TestCase):
@@ -28,12 +27,12 @@ class SingleThreadTestCase(base.TestCase):
         self.assertEqual(fib3.func, 'fib')
 
         # fib(3) == fib(2) + fib(1)
-        self.assertEqual(2, len(fib3.callees))
+        self.assertEqual(2, len(fib3.calls))
 
         # fib(2) == fib(1) + fib(0)
-        fib2 = fib3.callees[0]
-        self.assertEqual(2, len(fib2.callees))
+        fib2 = fib3.calls[0]
+        self.assertEqual(2, len(fib2.calls))
 
         # fib(1) == 0
-        fib1 = fib2.callees[0]
-        self.assertEqual(0, len(fib1.callees))
+        fib1 = fib2.calls[0]
+        self.assertEqual(0, len(fib1.calls))

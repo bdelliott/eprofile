@@ -33,11 +33,7 @@ class Profiler(object):
 
     def trace(self, frame, event, arg):
         gid = self._gid()
-        x = len(self.threads)
         thread = self.threads.setdefault(gid, Thread(gid))
-        y = len(self.threads)
-        if y > x:
-            print "Added thread: %s" % gid
 
         if event == 'call':
             # interpreter is calling a new function
@@ -52,18 +48,25 @@ class Profiler(object):
 
         elif event == 'return':
             # pop a call off the thread's state stack
+
+            # note: this gets called with arg == None for exceptions being
+            # raised
             thread.return_()
 
         elif event == 'exception':
-            exc, value, tb = arg
-            print "**** exception ****"
-            print exc
-            print value
-            print tb
-            import traceback
-            traceback.print_tb(tb)
-
-            raise exc, value, tb
+            # don't do anything special with these, just note the timers
+            # and thread swaps
+            #
+            #exc, val, tb = arg
+            #print "**** exception ****"
+            #print exc
+            #print val
+            #print tb
+            #code = frame.f_code
+            #print code.co_filename
+            #print code.co_firstlineno
+            #print code.co_name
+            pass
 
         else:
             raise SystemExit(event)
@@ -96,10 +99,9 @@ class Thread(object):
         call = self.stack.pop()
         call.end()
 
-    def __str__(self):
-        # pretty print the execution path
-        for call in self.calls:
-            print call
+    def __repr__(self):
+        # print the gid and top-level call
+        return "%s :: %s" % (self.gid, self.calls[0].func)
 
 
 class Call(object):
@@ -109,11 +111,12 @@ class Call(object):
         self.func = func
         self.start = time.time()
 
-        self.callees = []
+        self.short_filename = filename.split('/')[-1]
+        self.calls = []
 
     def add(self, call):
         # add a callee
-        self.callees.append(call)
+        self.calls.append(call)
 
     def end(self):
         self.end = time.time()
@@ -125,11 +128,11 @@ class Call(object):
 
         # also render callees:
         level += 2
-        for callee in self.callees:
-            callee.pretty(level=level)
+        for call in self.calls:
+            call.pretty(level=level)
 
     def __repr__(self):
         return self.__str__()
 
     def __str__(self):
-        return self.func
+        return "%s:%s" % (self.short_filename, self.func)
