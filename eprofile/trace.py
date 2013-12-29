@@ -1,20 +1,22 @@
 """Set a trace function and track time in individual greenthreads"""
 # set a trace function and do some basic profiling on where time is spent
 
-#import eventlet
-#eventlet.monkey_patch()
+import eventlet
+eventlet.monkey_patch()
 
-from eventlet import greenthread
 import sys
 import time
 
-import tests
+from eventlet import greenthread
+import prettytable
 
 
 class Profiler(object):
 
     def __init__(self):
         self.threads = {}
+
+        self.current = None  # current thread being traced
 
         # call once into the hub or we get errors about missing 'hub' in
         # threadlocal during tracing
@@ -27,14 +29,33 @@ class Profiler(object):
             func(*args, **kwargs)
         finally:
             sys.settrace(None)
+            self.tally()
 
     def _gid(self):
         return id(greenthread.getcurrent())
+
+    def tally(self):
+        # tally up timings
+        for thread in self.threads.values():
+            thread.tally()
 
     def trace(self, frame, event, arg):
         gid = self._gid()
         thread = self.threads.setdefault(gid, Thread(gid))
 
+        # did the thread swap?
+        if self.current and thread != self.current:
+            now = time.time()
+
+            # swapped, mark the old thread as suspended
+            self.current.suspend(now)
+
+            # if the new thread was suspended, mark it resumed
+            thread.resume(now)
+
+        self.current = thread
+
+        # process the event
         if event == 'call':
             # interpreter is calling a new function
             thread.call(frame)
@@ -43,8 +64,7 @@ class Profiler(object):
 
         elif event == 'line':
             # interpreter is executing a new line or iteration of a loop.
-            # ignore.
-            pass
+            thread.line(frame)
 
         elif event == 'return':
             # pop a call off the thread's state stack
@@ -71,12 +91,34 @@ class Profiler(object):
         else:
             raise SystemExit(event)
 
+    def print_stats(self):
+        cols = ['GID', 'Entry', 'Run time', 'Suspend time']
+        t = prettytable.PrettyTable(cols)
+
+        for thread in self.threads.values():
+            tr = "%0.4f" % thread.time_running
+            ts = "%0.4f" % thread.time_suspended
+            row = [thread.gid, thread.calls[0].desc(), tr, ts]
+            t.add_row(row)
+
+        print t
+
 
 class Thread(object):
     def __init__(self, gid):
         self.gid = gid
         self.calls = []
         self.stack = []
+
+        self.start = None  # wall clock start and end
+        self.end = None
+
+        self.suspend_start = None
+        self.suspend_end = None
+
+        self.time_total = 0  # total wall clock time for the thread
+        self.time_running = 0  # time actually executing code
+        self.time_suspended = 0  # cumulative suspension time
 
     def call(self, frame):
         code = frame.f_code
@@ -95,9 +137,49 @@ class Thread(object):
         # push it onto stack of the current execution path:
         self.stack.append(call)
 
+    def line(self, frame):
+        # new line or loop iteration - update timestamp on current call
+        # in the stack
+        call = self.stack[-1]
+        call.update_touch()
+
+    def resume(self, ts):
+        # if thread was suspended, resume it
+        if self.suspend_start:
+            self.suspend_end = ts
+
+            diff = self.suspend_end - self.suspend_start
+            self.time_suspended += diff
+
+            self.suspend_end = self.suspend_start = None
+
     def return_(self):
         call = self.stack.pop()
-        call.end()
+        call.finish()
+
+    def suspend(self, ts):
+        # mark it as no longer running
+        self.suspend_start = ts
+
+    def tally(self):
+        # tally up final runtime timings
+        self.start = self.calls[0].start
+
+        # take either the end timestamp from the call returning or its most
+        # recent touch value.  (We don't know for sure that all calls are
+        # completed when tracing completes)
+        if len(self.stack) == 0:
+            lastcall = self.calls[-1]
+            assert lastcall.end is not None
+            self.end = lastcall.end
+        else:
+            lastcall = self.stack[-1]
+            self.end = lastcall.touch
+
+        self.time_total = self.end - self.start
+
+        # actual time running is just wall time minus suspension time
+        self.time_running = self.time_total - self.time_suspended
 
     def __repr__(self):
         # print the gid and top-level call
@@ -114,11 +196,19 @@ class Call(object):
         self.short_filename = filename.split('/')[-1]
         self.calls = []
 
+        self.start = time.time()
+        self.touch = self.start  # most recent timestamp for the call
+        self.end = None
+
     def add(self, call):
         # add a callee
         self.calls.append(call)
 
-    def end(self):
+    def desc(self):
+        # short-description of the call
+        return "%s:%d::%s" % (self.short_filename, self.line, self.func)
+
+    def finish(self):
         self.end = time.time()
 
     def pretty(self, level=0):
@@ -130,6 +220,9 @@ class Call(object):
         level += 2
         for call in self.calls:
             call.pretty(level=level)
+
+    def update_touch(self):
+        self.touch = time.time()
 
     def __repr__(self):
         return self.__str__()

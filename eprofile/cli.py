@@ -39,7 +39,5 @@ def _exec(func, *args):
         for call in thread.calls:
             call.pretty()
 
-    print "-" *80
+    print "-" * 80
     prof.print_stats()
-
-
