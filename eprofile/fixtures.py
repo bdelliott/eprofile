@@ -14,13 +14,15 @@ def bar():
     time.sleep(0.0)  # force a greenthread swap
 
 
-def multi():
+def multi(n=2):
+    n = int(n)
+
     # Run in multiple greenthreads
-    pool = greenpool.GreenPool(2)
+    pool = greenpool.GreenPool(n)
 
     results = []
 
-    for result in pool.imap(foo, range(2)):
+    for result in pool.imap(foo, range(n)):
         results.append(result)
 
 
