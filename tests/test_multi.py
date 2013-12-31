@@ -78,15 +78,18 @@ class MultiThreadTestCase(base.TestCase):
 
         self.assertEqual(1, len(self.prof.threads))
 
+        self.prof.start = 1
+        self.prof.end = 5
+
         # add times to the calls
         thread = self.prof.threads.values()[0]
         self.assertEqual(2, len(thread.calls))
 
         thread.calls[0].start = 1
-        thread.calls[0].end = 2
+        thread.calls[0]._end = 2
 
         thread.calls[1].start = 3
-        thread.calls[1].end = 5
+        thread.calls[1]._end = 5
 
         # toss in one sec of suspend time
         thread.time_suspended = 1

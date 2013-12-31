@@ -4,7 +4,7 @@ eventlet.monkey_patch()
 import mox
 import unittest
 
-from eprofile import trace
+import eprofile
 
 
 class TestCase(unittest.TestCase):
@@ -13,7 +13,7 @@ class TestCase(unittest.TestCase):
         self.mox = mox.Mox()
         self.stubs = self.mox.stubs
 
-        self.prof = trace.Profiler()
+        self.prof = eprofile.Profiler()
 
     def tearDown(self):
         super(TestCase, self).tearDown()

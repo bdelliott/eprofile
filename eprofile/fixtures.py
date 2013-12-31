@@ -47,3 +47,11 @@ def swap():
 
 def wait():
     time.sleep(0.2)
+
+
+def outer():
+    inner()
+
+
+def inner():
+    return 

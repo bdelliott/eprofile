@@ -6,8 +6,8 @@ eventlet.monkey_patch()
 import optparse
 import sys
 
+import eprofile
 from eprofile import fixtures
-from eprofile import trace
 
 
 def main():
@@ -25,7 +25,7 @@ def main():
 
 
 def _exec(func, *args):
-    prof = trace.Profiler()
+    prof = eprofile.Profiler()
     prof.runcall(func, *args)
 
     print "-"*80
@@ -41,3 +41,6 @@ def _exec(func, *args):
 
     print "-" * 80
     prof.print_stats()
+
+    print "-" * 80
+    prof.print_cumulative()
