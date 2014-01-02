@@ -54,4 +54,4 @@ def outer():
 
 
 def inner():
-    return 
+    return

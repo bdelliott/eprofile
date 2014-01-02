@@ -140,9 +140,9 @@ class Profiler(object):
 
         print t
 
-    def get_cumulative(self):
-        # walk the call trees.  for each unique function record the
-        # time spent in it
+    def aggregate_timings(self):
+        # walk the call trees and calculate aggregate timings across all
+        # greenthreads
         d = {}
 
         def _walk(call, d):
@@ -152,35 +152,57 @@ class Profiler(object):
 
             key = call.code
 
-            default = {'secs': 0, 'num': 0, 'code': call.code}
-            cum = d.setdefault(key, default)
+            default = {'cum': 0, 'local': 0, 'num': 0, 'code': call.code}
+            timing = d.setdefault(key, default)
 
-            cum['num'] += 1
-            cum['secs'] += secs
+            timing['num'] += 1
+            timing['cum'] += secs  # add cumulative time
 
+            # recurse through the subtree of calls made
+            subcum = 0
             for call in call.calls:
-                _walk(call, d)
-            
+                subcum += _walk(call, d)
+
+            # subtract the cumulative time spent in calls and we get the
+            # localtime # spent in the current function
+            local = secs - subcum
+            timing['local'] += local
+
+            # retun cumulative time spent in this subset of the call tree
+            return secs
 
         for thread in self.threads.values():
             for call in thread.calls:
                 _walk(call, d)
 
-
-        # sort by most time
-        l = d.values()
-        l.sort(key=lambda x: x['secs'], reverse=True)
-
-        return l
+        return d.values()
 
     def print_cumulative(self):
-        l = self.get_cumulative()
+        l = self.aggregate_timings()
+
+        # sort by most cumulative time
+        l.sort(key=lambda x: x['cum'], reverse=True)
 
         print "Cumulative call data:"
         t = prettytable.PrettyTable(['Code point', 'Secs', 'Numcalls'])
 
-        for cum in l:
-            secs = "%0.4f" % cum['secs']
-            t.add_row((cum['code'], secs, cum['num']))
+        for timing in l:
+            secs = "%0.4f" % timing['cum']
+            t.add_row((timing['code'], secs, timing['num']))
+
+        print t
+
+    def print_localtime(self):
+        l = self.aggregate_timings()
+
+        # sort by most cumulative time
+        l.sort(key=lambda x: x['local'], reverse=True)
+
+        print "Localtime call data:"
+        t = prettytable.PrettyTable(['Code point', 'Secs', 'Numcalls'])
+
+        for timing in l:
+            secs = "%0.4f" % timing['local']
+            t.add_row((timing['code'], secs, timing['num']))
 
         print t

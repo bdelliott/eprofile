@@ -43,4 +43,11 @@ def _exec(func, *args):
     prof.print_stats()
 
     print "-" * 80
+    print "Cumulative:"
+    print "-" * 80
     prof.print_cumulative()
+
+    print "-" * 80
+    print "Localtime:"
+    print "-" * 80
+    prof.print_localtime()

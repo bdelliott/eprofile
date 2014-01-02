@@ -30,13 +30,14 @@ class StatsThreadTestCase(base.TestCase):
         inner._end = 5
 
         self.prof.tally()
-        l = self.prof.get_cumulative()
+        l = self.prof.aggregate_timings()
+        l.sort(key=lambda x: x['cum'], reverse=True)
 
         # should sort longer cumulative time 1st
-        cum = l[0]
-        self.assertEqual('outer', cum['code'].func)
-        self.assertEqual(4, cum['secs'])
+        timing = l[0]
+        self.assertEqual('outer', timing['code'].func)
+        self.assertEqual(4, timing['cum'])
 
-        cum = l[1]
-        self.assertEqual('inner', cum['code'].func)
-        self.assertEqual(2, cum['secs'])
+        timing = l[1]
+        self.assertEqual('inner', timing['code'].func)
+        self.assertEqual(2, timing['cum'])

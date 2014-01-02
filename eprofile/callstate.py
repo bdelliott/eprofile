@@ -87,4 +87,4 @@ class CodePoint(object):
                 self.func == other.func)
 
     def __str__(self):
-        return "%s:%d::%s" % (self.short_filename, self.line, self.func)
+        return "%s:%d::%s" % (self.filename, self.line, self.func)
