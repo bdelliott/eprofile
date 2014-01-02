@@ -13,6 +13,9 @@ class CallState(object):
         self.touch = self.start  # most recent timestamp for the call
         self._end = None
 
+        self.suspend_time = 0
+        self.suspend_start = None
+
     def add(self, call):
         # add a callee
         self.calls.append(call)
@@ -59,6 +62,13 @@ class CallState(object):
     @property
     def short_filename(self):
         return self.code.short_filename
+
+    def resume(self):
+        self.suspend_time += self.suspend_start
+        self.suspend_start = None
+
+    def suspend(self):
+        self.suspend_start = time.time()
 
     def update_touch(self):
         self.touch = time.time()

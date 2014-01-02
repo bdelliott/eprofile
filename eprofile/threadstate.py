@@ -53,13 +53,21 @@ class ThreadState(object):
 
             self.suspend_end = self.suspend_start = None
 
+            # also resume current call
+            if len(self.stack) > 0:
+                self.stack[-1].resume()
+
     def return_(self):
         call = self.stack.pop()
         call.finish()
 
     def suspend(self, ts):
-        # mark it as no longer running
+        # mark thread as no longer running
         self.suspend_start = ts
+
+        # mark current call as suspended also
+        if len(self.stack) > 0:
+            self.stack[-1].suspend()
 
     def tally(self):
         # tally up final runtime timings

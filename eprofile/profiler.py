@@ -152,7 +152,8 @@ class Profiler(object):
 
             key = call.code
 
-            default = {'cum': 0, 'local': 0, 'num': 0, 'code': call.code}
+            default = {'cum': 0, 'local': 0, 'suspend': 0,
+                       'num': 0, 'code': call.code}
             timing = d.setdefault(key, default)
 
             timing['num'] += 1
@@ -160,13 +161,18 @@ class Profiler(object):
 
             # recurse through the subtree of calls made
             subcum = 0
+
             for call in call.calls:
                 subcum += _walk(call, d)
 
             # subtract the cumulative time spent in calls and we get the
-            # localtime # spent in the current function
+            # localtime spent in the current function
             local = secs - subcum
             timing['local'] += local
+
+            # break out the suspended time
+            suspend = local - call.suspend_time
+            timing['suspend'] = suspend
 
             # retun cumulative time spent in this subset of the call tree
             return secs
@@ -199,10 +205,11 @@ class Profiler(object):
         l.sort(key=lambda x: x['local'], reverse=True)
 
         print "Localtime call data:"
-        t = prettytable.PrettyTable(['Code point', 'Secs', 'Numcalls'])
+        t = prettytable.PrettyTable(['Code point', 'Secs', 'Suspend', 'Numcalls'])
 
         for timing in l:
             secs = "%0.4f" % timing['local']
-            t.add_row((timing['code'], secs, timing['num']))
+            suspend = "%0.4f" % timing['suspend']
+            t.add_row((timing['code'], secs, suspend, timing['num']))
 
         print t
